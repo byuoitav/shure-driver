@@ -2,8 +2,8 @@ package shure
 
 import (
 	"bufio"
+	"fmt"
 	"net"
-	"time"
 )
 
 type AudioControl struct {
@@ -16,9 +16,9 @@ type Connection struct {
 
 //GetConnection will form a connection with a device at Address
 func (s *AudioControl) GetConnection() (*Connection, error) {
-	connection, err := net.DialTimeout("tcp", s.Address+":2202", time.Second*3)
+	connection, err := net.Dial("tcp", s.Address+":2202")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("can't make connection to receiver, %s", err.Error())
 	}
 
 	return &Connection{
@@ -30,7 +30,7 @@ func (s *AudioControl) GetConnection() (*Connection, error) {
 func (c *Connection) ReadEvent() (string, error) {
 	reader := bufio.NewReader(c.Conn)
 
-	data, err := reader.ReadString('>') // does readstring block?
+	data, err := reader.ReadString('>')
 	if err != nil {
 		return "", err
 	}
