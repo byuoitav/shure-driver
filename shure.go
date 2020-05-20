@@ -11,19 +11,21 @@ type AudioControl struct {
 }
 
 type Connection struct {
-	Conn net.Conn
+	Conn    net.Conn
+	Address string
 }
 
 //GetConnection will form a connection with a device at Address
 func (s *AudioControl) GetConnection() (*Connection, error) {
-	connection, err := net.Dial("tcp", s.Address+":2202")
+	conn := &Connection{
+		Address: s.Address + ":2202",
+	}
+	err := conn.connect()
 	if err != nil {
 		return nil, fmt.Errorf("can't make connection to receiver, %s", err.Error())
 	}
 
-	return &Connection{
-		Conn: connection,
-	}, nil
+	return conn, nil
 }
 
 //ReadEvent will read an event from a shure audio device
@@ -35,5 +37,14 @@ func (c *Connection) ReadEvent() (string, error) {
 		return "", err
 	}
 
-	return data, nil
+	return string(data), nil
+}
+
+func (c *Connection) connect() error {
+	connection, err := net.Dial("tcp", c.Address)
+	if err != nil {
+		return err
+	}
+	c.Conn = connection
+	return nil
 }
