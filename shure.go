@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"net"
-	"regexp"
-	"strings"
 )
 
 type AudioControl struct {
@@ -49,61 +47,4 @@ func (c *Connection) ReadEvent() (string, error) {
 	}
 
 	return string(data), nil
-}
-
-//GetBatteryCharge requests the battery charge of the device on channel 'channel'
-func (c *Connection) GetBatteryCharge(channel int) (string, error) {
-	msg := fmt.Sprintf("< GET %d BATT_CHARGE >", channel)
-
-	return c.getBatteryStatus(msg)
-}
-
-//GetBatteryRunTime requests the battery run time of the device on channel 'channel'
-func (c *Connection) GetBatteryRunTime(channel int) (string, error) {
-	msg := fmt.Sprintf("< GET %d BATT_RUN_TIME >", channel)
-
-	return c.getBatteryStatus(msg)
-}
-
-//GetBatteryBars requests the battery bars of the device on channel 'channel'
-func (c *Connection) GetBatteryBars(channel int) (string, error) {
-	msg := fmt.Sprintf("< GET %d BATT_BARS >", channel)
-
-	return c.getBatteryStatus(msg)
-}
-
-func (c *Connection) getBatteryStatus(msg string) (string, error) {
-	c.Conn.Write([]byte(msg))
-
-	reader := bufio.NewReader(c.Conn)
-	resp, err := reader.ReadString('>')
-	if err != nil {
-		return "", err
-	}
-
-	re := regexp.MustCompile(`\d+ >`)
-	val := re.FindString(resp)
-	val = strings.TrimSuffix(val, " >")
-
-	return val, nil
-}
-
-//GetPowerStatus requests the power status of the device on channel 'channel'
-func (c *Connection) GetPowerStatus(channel int) (string, error) {
-	msg := fmt.Sprintf("< GET %d TX_TYPE >", channel)
-	c.Conn.Write([]byte(msg))
-
-	reader := bufio.NewReader(c.Conn)
-	resp, err := reader.ReadString('>')
-	if err != nil {
-		return "", err
-	}
-
-	if !strings.Contains(resp, "TX_TYPE") {
-		return "", fmt.Errorf("Invalid response, expected type 'TX_TYPE', received: %s", resp)
-	} else if strings.Contains(resp, "UNKN") {
-		return "standby", nil
-	}
-
-	return "on", nil
 }
