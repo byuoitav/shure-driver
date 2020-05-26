@@ -87,3 +87,23 @@ func (c *Connection) getBatteryStatus(msg string) (string, error) {
 
 	return val, nil
 }
+
+//GetPowerStatus requests the power status of the device on channel 'channel'
+func (c *Connection) GetPowerStatus(channel int) (string, error) {
+	msg := fmt.Sprintf("< GET %d TX_TYPE >", channel)
+	c.Conn.Write([]byte(msg))
+
+	reader := bufio.NewReader(c.Conn)
+	resp, err := reader.ReadString('>')
+	if err != nil {
+		return "", err
+	}
+
+	if !strings.Contains(resp, "TX_TYPE") {
+		return "", fmt.Errorf("Invalid response, expected type 'TX_TYPE', received: %s", resp)
+	} else if strings.Contains(resp, "UNKN") {
+		return "standby", nil
+	}
+
+	return "on", nil
+}
