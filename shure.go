@@ -46,16 +46,14 @@ func (c *Connection) ReadEvent() (string, error) {
 		return "", err
 	}
 
-	return string(data), nil
+	return data, nil
 }
 
 //SendEvent sends a raw event to the shure receiver and returns the response
 func (c *Connection) SendEvent(msg string) (string, error) {
 	c.Conn.Write([]byte(msg))
 
-	reader := bufio.NewReader(c.Conn)
-
-	resp, err := reader.ReadString('>')
+	resp, err := c.ReadEvent()
 	if err != nil {
 		return "", fmt.Errorf("failed to read response: %s", err.Error())
 	}

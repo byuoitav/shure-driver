@@ -1,7 +1,6 @@
 package shure
 
 import (
-	"bufio"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -89,10 +88,9 @@ func (c *Connection) GetBatteryBars(channel int) (string, error) {
 func (c *Connection) getBatteryStatus(msg string) (string, error) {
 	c.Conn.Write([]byte(msg))
 
-	reader := bufio.NewReader(c.Conn)
-	resp, err := reader.ReadString('>')
+	resp, err := c.ReadEvent()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to read response: %s", err.Error())
 	}
 
 	re := regexp.MustCompile(`\d+ >`)
@@ -107,10 +105,9 @@ func (c *Connection) GetPowerStatus(channel int) (string, error) {
 	msg := fmt.Sprintf("< GET %d TX_TYPE >", channel)
 	c.Conn.Write([]byte(msg))
 
-	reader := bufio.NewReader(c.Conn)
-	resp, err := reader.ReadString('>')
+	resp, err := c.ReadEvent()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to read response: %s", err.Error())
 	}
 
 	if !strings.Contains(resp, "TX_TYPE") {
