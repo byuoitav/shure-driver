@@ -86,11 +86,9 @@ func (c *Connection) GetBatteryBars(channel int) (string, error) {
 }
 
 func (c *Connection) getBatteryStatus(msg string) (string, error) {
-	c.Conn.Write([]byte(msg))
-
-	resp, err := c.ReadEvent()
+	resp, err := c.SendCommand(msg)
 	if err != nil {
-		return "", fmt.Errorf("failed to read response: %s", err.Error())
+		return "", fmt.Errorf("failed to get battery status: %s", err.Error())
 	}
 
 	re := regexp.MustCompile(`\d+ >`)
@@ -103,11 +101,10 @@ func (c *Connection) getBatteryStatus(msg string) (string, error) {
 //GetPowerStatus requests the power status of the device on channel 'channel'
 func (c *Connection) GetPowerStatus(channel int) (string, error) {
 	msg := fmt.Sprintf("< GET %d TX_TYPE >", channel)
-	c.Conn.Write([]byte(msg))
 
-	resp, err := c.ReadEvent()
+	resp, err := c.SendCommand(msg)
 	if err != nil {
-		return "", fmt.Errorf("failed to read response: %s", err.Error())
+		return "", fmt.Errorf("failed to get power status: %s", err.Error())
 	}
 
 	if !strings.Contains(resp, "TX_TYPE") {

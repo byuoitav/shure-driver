@@ -49,8 +49,8 @@ func (c *Connection) ReadEvent() (string, error) {
 	return data, nil
 }
 
-//SendEvent sends a raw event to the shure receiver and returns the response
-func (c *Connection) SendEvent(msg string) (string, error) {
+//SendCommand sends a command to the shure receiver and returns the response
+func (c *Connection) SendCommand(msg string) (string, error) {
 	c.Conn.Write([]byte(msg))
 
 	resp, err := c.ReadEvent()
