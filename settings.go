@@ -47,3 +47,22 @@ func (u *ULXDReceiver) GroupAndChannel(ctx context.Context, channel int) (int, i
 	return group, ch, nil
 }
 
+// TransmitterRFPower returns the transmitter RF power
+func (u *ULXDReceiver) TransmitterRFPower(ctx context.Context, channel int) (string, error) {
+	cmd := []byte(fmt.Sprintf("< GET %d TX_RF_PWR >", channel))
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	resp, err := u.sendCommand(ctx, cmd)
+	if err != nil {
+		return "", err
+	}
+
+	str := string(resp)
+	str = strings.TrimPrefix(str, fmt.Sprintf("< REP %d TX_RF_PWR", channel))
+	str = strings.TrimSuffix(str, ">")
+	str = strings.TrimSpace(str)
+
+	return str, nil
+}
