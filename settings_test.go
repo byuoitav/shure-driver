@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestTransmitterType(t *testing.T) {
+func TestGroupAndChannel(t *testing.T) {
 	ulxd := ULXDReceiver{
 		pool: &connpool.Pool{
 			TTL:   30 * time.Second,
@@ -26,7 +26,7 @@ func TestTransmitterType(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	typ, err := ulxd.TransmitterType(ctx, 1)
+	group, channel, err := ulxd.GroupAndChannel(ctx, 1)
 	require.NoError(t, err)
-	fmt.Printf("transmitter type: %v\n", typ)
+	fmt.Printf("group: %d, channel: %d\n", group, channel)
 }
