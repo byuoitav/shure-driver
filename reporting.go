@@ -48,6 +48,7 @@ func (u *ULXDReceiver) StartReporting(ctx context.Context) (chan Report, error) 
 		return nil, fmt.Errorf("Error while connecting to the receiver: %s", err)
 	}
 
+	// Create reader
 	r := bufio.NewReader(conn)
 	c := make(chan Report, 10) // Make slightly buffered channel
 
