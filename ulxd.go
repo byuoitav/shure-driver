@@ -16,13 +16,37 @@ package shure
 import (
 	"context"
 	"fmt"
+	"net"
+	"time"
 
 	"github.com/byuoitav/connpool"
 )
 
 // ULXDReceiver represents a ULXD Receiver.
 type ULXDReceiver struct {
-	pool *connpool.Pool
+	address string
+	pool    *connpool.Pool
+}
+
+func NewReceiver(address string) (*ULXDReceiver, error) {
+	p := connpool.Pool{
+		TTL:   30 * time.Second,
+		Delay: 200 * time.Millisecond,
+	}
+
+	p.NewConnection = func(ctx context.Context) (net.Conn, error) {
+		timeout := 30 * time.Second // default timeout
+		// Set timeout according to context if a deadline exists
+		if d, ok := ctx.Deadline(); ok {
+			timeout = time.Until(d)
+		}
+		return net.DialTimeout("tcp", fmt.Sprintf("%s:2202", address), timeout)
+	}
+
+	return &ULXDReceiver{
+		address: address,
+		pool:    &p,
+	}, nil
 }
 
 func (u *ULXDReceiver) sendCommand(ctx context.Context, cmd []byte) ([]byte, error) {
