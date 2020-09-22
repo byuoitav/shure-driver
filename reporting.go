@@ -103,7 +103,7 @@ func parseReport(data string) (Report, bool) {
 		return report, false
 	}
 
-	c, err := strconv.Atoi(channel)
+	c, err := strconv.Atoi(channel[len(channel)-1:])
 	if err != nil {
 		// Report error
 		report.Channel = -1
