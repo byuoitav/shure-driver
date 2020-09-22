@@ -131,7 +131,7 @@ func parseReport(data string) (Report, bool) {
 		report.Channel = -1
 		report.Type = ERROR
 		report.Value = "UnrecognizedReport"
-		report.Message = "Encountered an unrecognized report type"
+		report.Message = fmt.Sprintf("Encountered an unrecognized report: %s", data)
 	}
 
 	return report, true
