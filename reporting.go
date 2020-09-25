@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-var reportRegex = regexp.MustCompile("< REP ([0-9])? ?([A-Z,_]*) (.*)? ?>")
+var reportRegex = regexp.MustCompile("< REP ([0-9])? ?([A-Z,_]*) ?(.*)? >")
 
 const (
 	_fullReportIndex = 0
