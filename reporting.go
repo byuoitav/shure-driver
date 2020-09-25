@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-var reportRegex = regexp.MustCompile("< REP ([0-9])? ?([A-Z,_]*) (.*) >")
+var reportRegex = regexp.MustCompile("< REP ([0-9])? ?([A-Z,_]*) (.*)? ?>")
 
 const (
 	_fullReportIndex = 0
@@ -88,6 +88,16 @@ func monitorReporting(r *bufio.Reader, c chan Report) {
 func parseReport(data string) Report {
 	// Parse Raw Data
 	parts := reportRegex.FindStringSubmatch(data)
+
+	// Handle matching error
+	if len(parts) == 0 {
+		return Report{
+			Type:       ErrorReportType,
+			Channel:    -1,
+			Value:      "ParseError",
+			FullReport: fmt.Sprintf("Report did not match expected format: %s", data),
+		}
+	}
 
 	// Translate channel to int
 	var err error
