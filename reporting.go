@@ -9,28 +9,24 @@ import (
 	"net"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 )
 
-type ReportType int
+var reportRegex = regexp.MustCompile("< REP ([0-9])? ?([A-Z,_]*) (.*) >")
 
 const (
-	ERROR = iota + 1
-	BATTERY_CYCLES
-	BATTERY_CHARGE_MINUTES
-	BATTERY_TYPE
-	INTERFERENCE
-	POWER
+	_fullReportIndex = 0
+	_channelIndex    = 1
+	_typeIndex       = 2
+	_valueIndex      = 3
 )
-
-var channelRegex = regexp.MustCompile("REP [\\d]")
+const ErrorReportType = "ERROR"
 
 type Report struct {
-	Type    ReportType
-	Value   string
-	Channel int
-	Message string
+	Type       string
+	Value      string
+	Channel    int
+	FullReport string
 }
 
 func (u *ULXDReceiver) StartReporting(ctx context.Context) (chan Report, error) {
@@ -66,165 +62,58 @@ func monitorReporting(r *bufio.Reader, c chan Report) {
 			// If the connection was closed
 			if errors.Is(err, io.EOF) {
 				c <- Report{
-					Type:    ERROR,
-					Value:   "ConnectionClosedError",
-					Channel: -1,
-					Message: "The connection to the receiver was closed",
+					Type:       ErrorReportType,
+					Value:      "ConnectionClosedError",
+					Channel:    -1,
+					FullReport: "The connection to the receiver was closed",
 				}
 				close(c)
 				return
 			}
 
 			c <- Report{
-				Type:    ERROR,
-				Value:   "ReadError",
-				Channel: -1,
-				Message: fmt.Sprintf("Error while reading from receiver: %s", err),
+				Type:       ErrorReportType,
+				Value:      "ReadError",
+				Channel:    -1,
+				FullReport: fmt.Sprintf("Error while reading from receiver: %s", err),
 			}
 			continue
 		}
 
-		// If we have a report then send it, else continue
-		if report, ok := parseReport(data); ok {
-			c <- report
+		c <- parseReport(data)
+
+	}
+}
+
+func parseReport(data string) Report {
+	// Parse Raw Data
+	parts := reportRegex.FindStringSubmatch(data)
+
+	// Translate channel to int
+	var err error
+	channel := 0
+	// -1 if there is no channel
+	if len(parts[_channelIndex]) == 0 {
+		channel = -1
+	} else { // otherwise convert to int
+		channel, err = strconv.Atoi(parts[_channelIndex])
+		// Error if we can't convert channel to an int
+		if err != nil {
+			return Report{
+				Type:       ErrorReportType,
+				Channel:    -1,
+				Value:      "ParseError",
+				FullReport: fmt.Sprintf("Error while parsing channel: %s", err),
+			}
 		}
 
 	}
-}
 
-func parseReport(data string) (Report, bool) {
-	report := Report{}
-
-	// Get Channel
-	channel := channelRegex.FindString(data)
-	if len(channel) == 0 {
-		// TODO: Confirm that below assumption is valid?
-		// No relevant data so skip
-		return report, false
-	}
-
-	c, err := strconv.Atoi(channel[len(channel)-1:])
-	if err != nil {
-		// Report error
-		report.Channel = -1
-		report.Type = ERROR
-		report.Value = "ParseError"
-		report.Message = fmt.Sprintf("Error while parsing channel: %s", err)
-		return report, true
-	}
-
-	report.Channel = c
-
-	// Determine event type and populate data
-	if strings.Contains(data, "RF_INT_DET") {
-		populateInterferenceReport(data, &report)
-	} else if strings.Contains(data, "TX_TYPE") {
-		populatePowerReport(data, &report)
-	} else if strings.Contains(data, "BATT_CYCLE") {
-		populateBatteryCyclesReport(data, &report)
-	} else if strings.Contains(data, "BATT_RUN_TIME") {
-		populateBatteryChargeMinutesReport(data, &report)
-	} else if strings.Contains(data, "BATT_TYPE") {
-		populateBatteryTypeReport(data, &report)
-	} else {
-		// Unrecognized event
-		report.Channel = -1
-		report.Type = ERROR
-		report.Value = "UnrecognizedReport"
-		report.Message = fmt.Sprintf("Encountered an unrecognized report: %s", data)
-	}
-
-	return report, true
-}
-
-func populateInterferenceReport(data string, r *Report) {
-	r.Type = INTERFERENCE
-
-	// Determine interference
-	if strings.Contains(data, "NONE") {
-		r.Value = "NONE"
-		r.Message = fmt.Sprintf("No interference on channel %d", r.Channel)
-	} else if strings.Contains(data, "CRITICAL") {
-		r.Value = "CRITICAL"
-		r.Message = fmt.Sprintf("Interference on channel %d", r.Channel)
-	} else {
-		// Invalid data
-		r.Type = ERROR
-		r.Channel = -1
-		r.Value = "ParseError"
-		r.Message = "Invalid value for interference report"
-		return
-	}
-}
-
-func populatePowerReport(data string, r *Report) {
-	r.Type = POWER
-
-	// Determine power state
-	if strings.Contains(data, "UNKN") {
-		r.Value = "STANDBY"
-		// TODO: Is this by channel?
-		r.Message = "Power is in standby mode"
-	} else {
-		r.Value = "ON"
-		r.Message = "Power is on"
-	}
-}
-
-func populateBatteryCyclesReport(data string, r *Report) {
-	r.Type = BATTERY_CYCLES
-
-	re := regexp.MustCompile("[1-9][0-9]*")
-	cycles := re.FindString(data)
-
-	switch cycles {
-	case "65535":
-		r.Value = "UNKNOWN"
-		r.Message = fmt.Sprintf("Channel %d has an unknown number of battery cycles", r.Channel)
-	case "":
-		r.Value = "0"
-		r.Message = fmt.Sprintf("Channel %d has 0 battery cycles", r.Channel)
-	default:
-		r.Value = cycles
-		r.Message = fmt.Sprintf("Channel %d has %s battery cyles", r.Channel, cycles)
-	}
-}
-
-func populateBatteryChargeMinutesReport(data string, r *Report) {
-	r.Type = BATTERY_CHARGE_MINUTES
-
-	re := regexp.MustCompile("[1-9][0-9]*")
-	time := re.FindString(data)
-
-	// TODO: Other values?
-	switch time {
-	case "65535":
-		r.Value = "UNKNOWN"
-		r.Message = fmt.Sprintf("Channel %d has an unknown number of minutes left", r.Channel)
-	case "65534":
-		r.Value = "CALCULATING"
-		r.Message = fmt.Sprintf("Channel %d is calculating the number of minutes left", r.Channel)
-	case "":
-		r.Value = "0"
-		r.Message = fmt.Sprintf("Channel %d has 0 minutes left", r.Channel)
-	default:
-		r.Value = time
-		r.Message = fmt.Sprintf("Channel %d has %s minutes left", r.Channel, time)
-	}
-}
-
-func populateBatteryTypeReport(data string, r *Report) {
-	r.Type = BATTERY_TYPE
-
-	re := regexp.MustCompile("[\\s][A-Z]{4}[\\s]")
-	batteryType := re.FindString(data)
-
-	switch batteryType {
-	case " UNKN ":
-		r.Value = "UNKNOWN"
-		r.Message = fmt.Sprintf("Channel %d has an unknown battery type", r.Channel)
-	default:
-		r.Value = strings.TrimSpace(batteryType)
-		r.Message = fmt.Sprintf("Channel %d has a %s battery type", r.Channel, r.Value)
+	// Populate Report
+	return Report{
+		Type:       parts[_typeIndex],
+		Channel:    channel,
+		Value:      parts[_valueIndex],
+		FullReport: parts[_fullReportIndex],
 	}
 }
